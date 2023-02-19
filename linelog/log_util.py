@@ -6,8 +6,11 @@ from itertools import pairwise
 from functools import reduce
 import datetime
 from datetime import datetime as dt
+from functools import cache
 
 import pygit2
+
+from sloc import sloc_from_text
 
 
 def is_commit_on_date(commit, target_date: datetime.date) -> bool:
@@ -30,22 +33,35 @@ def get_date_commits(repo: pygit2.Repository, target_date: datetime.date):
     ]
 
 
-def get_files(repo: pygit2.Repository, tree_root: pygit2.Tree):
+def get_files(
+    repo: pygit2.Repository,
+    tree_root: pygit2.Tree,
+    ignore_patterns: set[str] | None = None,
+):
 
     contained_files: list[pygit2.Blob] = []
     for item in tree_root:
+
+        # TODO this is screwey
+        if ignore_patterns and (
+            any(map(lambda p: re.match(p, str(item.name)), ignore_patterns))
+        ):
+            continue
+
         if isinstance(item, pygit2.Blob):
             contained_files.append(item)
 
         elif isinstance(item, pygit2.Tree):
-            contained_files.extend(get_files(repo, item))
+            contained_files.extend(
+                get_files(repo, item, ignore_patterns=ignore_patterns)
+            )
 
     return contained_files
 
 
 def main():
 
-    ignore_patterns = ["*.txt"]
+    ignore_patterns = [r"*\.txt"]
 
     target_path = sys.argv[1] if len(sys.argv) > 1 else os.getcwd()
     repo = pygit2.Repository(target_path)
@@ -53,47 +69,19 @@ def main():
     # TODO diffing against the prev commit on a day fails when there's only one commit on a given day
     # should be the diffs on a day *plus one commit before*
 
-    commit_blobs = [
-        sorted(get_files(repo, commit.tree))
+    commit_blobs = {
+        commit.id: {
+            str(f.name): sloc_from_text("filename.ext", f.data.decode())
+            for f in get_files(repo, commit.tree)
+        }
         for commit in get_date_commits(repo, datetime.date.today())
-    ]
+    }
+
+    for k, v in commit_blobs.items():
+        print(k)
+
+        for file, sloc in v.items():
+            print(f"{file} has {sloc} lines")
 
 
 main()
-
-
-def main_old():
-    return None
-    # exactly one line
-
-    target_path = sys.argv[1] if len(sys.argv) > 1 else os.getcwd()
-
-    repo = pygit2.Repository(target_path)
-
-    for commit_later, commit_earlier in pairwise(
-        get_date_commits(repo, datetime.date.today())
-    ):
-        pair_diff = repo.diff(
-            commit_earlier, commit_later, flags=pygit2.GIT_DIFF_IGNORE_WHITESPACE
-        )
-
-        for e in commit_later.tree:
-            print(e.name)
-
-        # not ideal...guys pls give diff a proper constructor
-        # TODO continue on failure instead of aborting
-        assert isinstance(pair_diff, pygit2.Diff)
-
-        print(
-            f'Between "{commit_earlier.message.strip()}" and "{commit_later.message.strip()}"'
-        )
-
-        totals = reduce(
-            lambda acc, d: (a + s for a, s in zip(acc, d.line_stats)),
-            pair_diff,
-            (0, 0, 0),
-        )
-
-        print("Total diff: context: {} added: {}, deleted: {} \n\n".format(*totals))
-
-    return None
