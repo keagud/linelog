@@ -7,6 +7,7 @@ from functools import reduce
 import datetime
 from datetime import datetime as dt
 from functools import cache
+from mimetypes import guess_type
 
 import pygit2
 
@@ -36,11 +37,12 @@ def get_date_commits(repo: pygit2.Repository, target_date: datetime.date):
 def get_files(
     repo: pygit2.Repository,
     tree_root: pygit2.Tree,
-    ignore_patterns: set[str] | None = None,
+    ignore_patterns: list[str] | None = None,
 ):
 
     contained_files: list[pygit2.Blob] = []
     for item in tree_root:
+        
 
         # TODO this is screwey
         if ignore_patterns and (
@@ -48,7 +50,7 @@ def get_files(
         ):
             continue
 
-        if isinstance(item, pygit2.Blob):
+        if isinstance(item, pygit2.Blob) and not item.is_binary:
             contained_files.append(item)
 
         elif isinstance(item, pygit2.Tree):
@@ -61,9 +63,10 @@ def get_files(
 
 def main():
 
-    ignore_patterns = [r"*\.txt"]
+    ignore_patterns = [r".*\.txt", r".*\.md"]
 
-    target_path = sys.argv[1] if len(sys.argv) > 1 else os.getcwd()
+    # target_path = sys.argv[1] if len(sys.argv) > 1 else os.getcwd()
+    target_path = Path("~/Code/C-Studies").expanduser().resolve()
     repo = pygit2.Repository(target_path)
 
     # TODO diffing against the prev commit on a day fails when there's only one commit on a given day
@@ -71,8 +74,8 @@ def main():
 
     commit_blobs = {
         commit.id: {
-            str(f.name): sloc_from_text("filename.ext", f.data.decode())
-            for f in get_files(repo, commit.tree)
+            str(f.name): sloc_from_text("filename.ext", f.data)
+            for f in get_files(repo, commit.tree, ignore_patterns=ignore_patterns)
         }
         for commit in get_date_commits(repo, datetime.date.today())
     }
@@ -81,7 +84,8 @@ def main():
         print(k)
 
         for file, sloc in v.items():
-            print(f"{file} has {sloc} lines")
+            g, _ = guess_type(file)
+            print(f"{file} has {sloc} lines ({g})")
 
 
 main()

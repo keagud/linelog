@@ -14,8 +14,11 @@ MIN_CHARS = 2
 
 def sloc_from_text(_: str, src_text: str | bytes) -> int:
 
-    if isinstance(src_text, bytes):
-        src_text = src_text.decode()
+    try:
+        if isinstance(src_text, bytes):
+            src_text = src_text.decode()
+    except UnicodeDecodeError:
+        return 0
 
     # get rid of c -style /**/ comments
 
