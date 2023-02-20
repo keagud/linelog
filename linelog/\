@@ -23,6 +23,18 @@ def is_commit_on_date(commit, target_date: datetime.date) -> bool:
 
     return interval_start.timestamp() <= commit.commit_time <= interval_end.timestamp()
 
+
+def get_date_commits_2(repo: pygit2.Repository, target_date: datetime.date):
+
+    last = repo[repo.head.target]
+
+    return [
+        c
+        for c in repo.walk(last.id, pygit2.GIT_SORT_TIME)
+        if is_commit_on_date(c, target_date)
+    ]
+
+
 def get_files(
     repo: pygit2.Repository,
     tree_root: pygit2.Tree,
@@ -56,17 +68,16 @@ def get_date_commits(repo: pygit2.Repository, target_date: datetime.date):
     last = repo[repo.head.target]
     day_commits: list[pygit2.Commit] = []
 
-    walker = repo.walk(last.id, pygit2.GIT_SORT_TIME)
+    walker = repo.walk(last.id, pygit2.GIT_SORT_NONE)
 
     interval_min = datetime.datetime.combine(target_date, datetime.time.min)
     interval_max = datetime.datetime.combine(target_date, datetime.time.max)
 
-    for commit in dropwhile(lambda c: c.commit_time > interval_max.timestamp(), walker):
-
+    for commit in dropwhile(lambda c: c.commit_time > interval_max.toordinal(), walker):
         if is_commit_on_date(commit, target_date):
             day_commits.append(commit)
 
-        if commit.commit_time < interval_min.timestamp():
+        if commit.commit_time < interval_min.toordinal():
             day_commits.append(commit)
             break
 
@@ -80,6 +91,9 @@ def main():
     target_path = sys.argv[1] if len(sys.argv) > 1 else os.getcwd()
     # target_path = Path("~/Code/C-Studies").expanduser().resolve()
     repo = pygit2.Repository(target_path)
+
+    # TODO diffing against the prev commit on a day fails when there's only one commit on a given day
+    # should be the diffs on a day *plus one commit before*
 
     commit_blobs = {
         commit.id: {
