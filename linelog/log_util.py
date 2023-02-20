@@ -1,18 +1,9 @@
-import os
-import sys
 import re
-from pathlib import Path
-from itertools import pairwise
-from itertools import takewhile, dropwhile
-from functools import reduce
+from itertools import dropwhile
 import datetime
 from datetime import datetime as dt
-from functools import cache
-from mimetypes import guess_type
-from functools import partial
 import json
 from os.path import splitext
-
 from typing import NamedTuple
 
 import pygit2
@@ -140,41 +131,10 @@ def files_line_sum(
     return data_by_type
 
 
-def compare_commit_totals(
-    earlier: dict[str, int], later: dict[str, int]
-) -> dict[str, int]:
-
-    return {k: max(v - earlier.get(k, 0), 0) for k, v in later.items()}
-
-
-def main():
-
-    ignore_patterns = [r".*\.txt", r".*\.md"]
-
-    target_path = sys.argv[1] if len(sys.argv) > 1 else os.getcwd()
-    repo = pygit2.Repository(target_path)
-
-    with open("filetypes.json", "r") as exts_file:
-        loaded_db = json.load(exts_file)
-
-    loaded_linesum = partial(files_line_sum, filetypes_db=loaded_db)
-
-    commit_blobs = [
-        loaded_linesum(commit, ignore_patterns=ignore_patterns)
-        for commit in get_date_commits(repo, datetime.date.today())
-    ]
-
-    commit_line_changes = [
-        compare_commit_totals(e, l) for e, l in pairwise(reversed(commit_blobs))
-    ]
-
-    def sum_dicts(d1: dict, d2: dict):
-        return {k: d1.get(k, 0) + d2.get(k, 0) for k in d1.keys() | d2.keys()}
-
-    line_totals = reduce(sum_dicts, commit_line_changes)
-
-    for k, v in line_totals.items():
-        print(f"{k} +{v}")
-
-
-main()
+def counts_for_interval(
+    repo: pygit2.Repository,
+    start_date: datetime.date,
+    end_date: datetime.date,
+    ignore_patterns: list[str] | None = None,
+) -> list[dict[datetime.date, dict[str, int]]]:  # type:ignore
+    pass
