@@ -5,6 +5,17 @@ from datetime import datetime as dt
 import json
 from os.path import splitext
 from typing import NamedTuple
+from math import copysign
+
+
+from functools import partial
+from functools import reduce
+from itertools import pairwise
+import os
+import sys
+
+
+from pprint import pprint
 
 import pygit2
 
@@ -81,7 +92,7 @@ def get_date_commits(
     # if the earliest commit is on the target day, add a dummy None commit to signify
     # the line comparison betwen commits should start at 0,
     # not the value of the last commit
-    if day_commits[-1].commit_time >= interval_min.timestamp():
+    if not day_commits or day_commits[-1].commit_time >= interval_min.timestamp():
         day_commits.append(None)
 
     return day_commits
@@ -131,10 +142,83 @@ def files_line_sum(
     return data_by_type
 
 
-def counts_for_interval(
+def compare_commit_totals(
+    earlier: dict[str, int], later: dict[str, int]
+) -> dict[str, int]:
+
+    return {k: max(v - earlier.get(k, 0), 0) for k, v in later.items()}
+
+
+def sum_dicts(d1: dict, d2: dict):
+    combined = {k: d1.get(k, 0) + d2.get(k, 0) for k in d1.keys() | d2.keys()}
+
+    # remove entries with a zero value
+    return {k: combined[k] for k in combined if combined[k]}
+
+
+def get_interval_repo_lines_custom(
     repo: pygit2.Repository,
     start_date: datetime.date,
-    end_date: datetime.date,
+    end_date: datetime.date | None = None,
     ignore_patterns: list[str] | None = None,
-) -> list[dict[datetime.date, dict[str, int]]]:  # type:ignore
-    pass
+    filetypes_db: dict[str, str] | None = None,
+) -> dict[datetime.date, dict[str, int]]:
+
+    if filetypes_db is None:
+        with open("filetypes.json", "r") as ftypes:
+            filetypes_db = json.load(ftypes)
+            assert filetypes_db
+
+    if end_date is None:
+        end_date = start_date + datetime.timedelta(days=1)
+
+    def iter_days(start: datetime.date, end: datetime.date):
+        days = end.toordinal() - start.toordinal()
+
+        iter_delta = datetime.timedelta(days=-1 if days < 0 else 1)
+
+        iter_day = start
+
+        while iter_day != end:
+            yield iter_day
+            iter_day += iter_delta
+
+    totals: dict[datetime.date, dict[str, int]] = {}
+    for d in iter_days(start_date, end_date):
+
+        day_results = [
+            files_line_sum(
+                c, ignore_patterns=ignore_patterns, filetypes_db=filetypes_db
+            )
+            for c in get_date_commits(repo, d)
+        ]
+
+        commit_line_changes = [
+            compare_commit_totals(e, l) for e, l in pairwise(reversed(day_results))
+        ]
+
+        totals[d] = reduce(sum_dicts, commit_line_changes, {})
+
+    return totals
+
+
+def _load_file_config():
+    with open("filetypes.json", "r") as exts_file:
+        loaded_db = json.load(exts_file)
+
+    return loaded_db
+
+
+def _get_ignore_config():
+    # TODO this should read from an external config yaml eventually
+    ignore_config = [r".*\.txt", r".*\.md", r".*\.rst", r".*\.toml"]
+    return ignore_config
+
+
+get_interval_repo_lines = partial(
+    get_interval_repo_lines_custom,
+    ignore_patterns=_get_ignore_config(),
+    filetypes_db=_load_file_config(),
+)
+
+
