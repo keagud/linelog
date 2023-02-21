@@ -38,7 +38,7 @@ def _sum_dicts(d1: dict, d2: dict):
     return {k: combined[k] for k in combined if combined[k]}
 
 
-def _get_global_username() -> str:
+def get_global_username() -> str:
     config = pygit2.Config.get_global_config()
     return config._get_entry("user.name").value
 
@@ -208,7 +208,9 @@ class RepoScanner:
         totals: dict[datetime.date, dict[str, int]] = {}
         for d in iter_days(start_date, end_date):
 
-            day_results = [self.files_line_sum(c) for c in self.get_date_commits(repo, d)]
+            day_results = [
+                self.files_line_sum(c) for c in self.get_date_commits(repo, d)
+            ]
 
             commit_line_changes = [
                 _compare_commit_totals(e, l) for e, l in pairwise(reversed(day_results))
@@ -226,7 +228,7 @@ def run():
     w = RepoScanner(ignore_patterns=ignore_config)
     current = getcwd()
 
-    s = w.get_repo_stats(current, date.today())
+    s = w.get_repo_stats(current, date.today(), date(2023, 2, 10))
     print(s)
 
 
