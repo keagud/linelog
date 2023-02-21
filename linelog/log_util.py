@@ -4,27 +4,18 @@ import datetime
 from datetime import datetime as dt
 import json
 from os.path import splitext
+from os import PathLike
 from typing import NamedTuple
-from math import copysign
 
 
 from functools import partial
 from functools import reduce
 from itertools import pairwise
-import os
-import sys
 
-
-from pprint import pprint
 
 import pygit2
 
 from sloc import sloc_from_text
-
-
-class CommitLineData(NamedTuple):
-    timestamp: float
-    totals: dict[str, int]
 
 
 def is_commit_on_date(commit, target_date: datetime.date) -> bool:
@@ -156,6 +147,7 @@ def sum_dicts(d1: dict, d2: dict):
     return {k: combined[k] for k in combined if combined[k]}
 
 
+#TODO maybe it makes more sense for this to be wrapped up in a class?
 def get_interval_repo_lines_custom(
     repo: pygit2.Repository,
     start_date: datetime.date,
@@ -211,8 +203,9 @@ def _load_file_config():
 
 def _get_ignore_config():
     # TODO this should read from an external config yaml eventually
-    ignore_config = [r".*\.txt", r".*\.md", r".*\.rst", r".*\.toml"]
+    ignore_config = [r".*\.txt", r".*\.md", r".*\.rst", r".*\.toml", r".*\.json"]
     return ignore_config
+
 
 
 get_interval_repo_lines = partial(
@@ -220,5 +213,15 @@ get_interval_repo_lines = partial(
     ignore_patterns=_get_ignore_config(),
     filetypes_db=_load_file_config(),
 )
+
+def recursive_repo_search(path: PathLike):
+
+
+
+
+    
+
+
+
 
 

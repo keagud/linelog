@@ -1,7 +1,10 @@
 import pygit2
 import plotille as pl
+import rich
+
 
 from datetime import date
+
 from shutil import get_terminal_size
 
 from log_util import get_interval_repo_lines
@@ -35,18 +38,17 @@ def make_figure(data: dict[date, dict[str, int]]) -> pl.Figure:
     fig = pl.Figure()
 
     term_width, term_height = get_terminal_size()
-    fig.width = term_width // 2
+    fig.width = min(term_width // 2, (len(data) * 8))
     fig.height = term_height // 3
 
     fig.set_y_limits(min_=0)
-    fig.set_x_limits(min_=min(data))
+
+    fig.set_x_limits(min_=min(data), max_=max(data))
 
     fig.register_label_formatter(date, date_formatter)
-
-    fig.x_label = "date"
     fig.y_label = "lines"
 
-    fig.origin = False
+    fig.origin = True
 
     fig.register_label_formatter(float, linescount_formatter)
 
@@ -55,14 +57,5 @@ def make_figure(data: dict[date, dict[str, int]]) -> pl.Figure:
     return fig
 
 
-def main():
-
-    repo = pygit2.Repository(getcwd())
-
-    d = get_interval_repo_lines(repo, date.today(), date(2023, 2, 15))
-
-    s = make_figure(d)
-    print(s.show())
 
 
-main()
