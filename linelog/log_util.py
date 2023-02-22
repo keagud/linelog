@@ -1,17 +1,15 @@
-import re
-from itertools import dropwhile
 import datetime
-from datetime import date, datetime as dt
 import json
 import os
-from os.path import isdir, splitext
+import re
+from datetime import date
+from datetime import datetime as dt
+from functools import reduce
+from itertools import dropwhile, pairwise
 from os import getcwd
+from os.path import isdir, splitext
 from pathlib import Path
 from typing import Any
-
-from functools import reduce
-from itertools import pairwise
-
 
 import pygit2
 
@@ -229,8 +227,6 @@ class RepoScanner:
 
         if isinstance(path_root, str):
             path_root = Path(path_root)
-
-        print(path_root)
 
         assert path_root.is_dir()
 

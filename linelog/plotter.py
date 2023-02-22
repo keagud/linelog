@@ -1,14 +1,9 @@
-import pygit2
-import plotille as pl
-import rich
-
-
 from datetime import date
-
 from shutil import get_terminal_size
 
-
-
+import plotille as pl
+import pygit2
+import rich
 
 
 def format_for_plot(data: dict[date, dict[str, int]]):

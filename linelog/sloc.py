@@ -1,6 +1,5 @@
 import re
 
-
 # TODO make this a configurable yaml or json
 DEFAULT_CONFIG = {
     "ignore-extensions": ["md", "rst", "toml", "json"],
