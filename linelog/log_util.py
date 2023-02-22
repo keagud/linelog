@@ -1,6 +1,7 @@
 import datetime
 import json
 import os
+from collections import deque
 import re
 from datetime import date
 from datetime import datetime as dt
@@ -17,7 +18,6 @@ from sloc import sloc_from_text
 
 
 def sum_dict_items(a: Any, b: Any):
-
     assert not (a is None and b is None)
 
     if a is None:
@@ -39,7 +39,6 @@ def sum_dict_items(a: Any, b: Any):
 
 
 def _is_commit_on_date(commit: pygit2.Commit, target_date: datetime.date) -> bool:
-
     interval_start = dt.combine(target_date, datetime.time.min)
 
     interval_end = dt.combine(target_date, datetime.time.max)
@@ -50,12 +49,10 @@ def _is_commit_on_date(commit: pygit2.Commit, target_date: datetime.date) -> boo
 def _compare_commit_totals(
     earlier: dict[str, int], later: dict[str, int]
 ) -> dict[str, int]:
-
     return {k: max(v - earlier.get(k, 0), 0) for k, v in later.items()}
 
 
 def _sum_dicts(d1: dict, d2: dict):
-
     assert type(d1) == type(d2)
 
     combiner = lambda x, y: x + y
@@ -83,7 +80,6 @@ class RepoScanner:
         filetypes_db_path: str | None = None,
         ignore_patterns: list[str] | None = None,
     ):
-
         if ignore_patterns is None:
             self.ignore_patterns = []
 
@@ -106,7 +102,6 @@ class RepoScanner:
         target_date: datetime.date,
         user: str | None = None,
     ) -> list[pygit2.Commit | None]:
-
         if user is None:
             user = self.username
 
@@ -115,6 +110,7 @@ class RepoScanner:
 
         except Exception as e:
             from pprint import pprint
+
             pprint(repo.path)
             raise e
             pass
@@ -141,7 +137,6 @@ class RepoScanner:
         for commit in dropwhile(
             lambda c: c.commit_time > interval_max.timestamp(), walker
         ):
-
             if not compare_names(commit, user):
                 continue
 
@@ -165,7 +160,6 @@ class RepoScanner:
         repo: pygit2.Repository,
         commit: pygit2.Commit | None,
     ):
-
         if commit is None:
             return {}
 
@@ -199,8 +193,41 @@ class RepoScanner:
 
         return data_by_type
 
-    def file_ignored(self, filepath: str, repo: pygit2.Repository | None = None):
+    def get_repo_paths(self, start_path_str: str) -> list[pygit2.Repository]:
+        def get_subdirs(p: Path):
+            return list(filter(lambda x: x.is_dir(), p.iterdir()))
 
+        start_path = Path(start_path_str).expanduser().resolve()
+        start_dirs = get_subdirs(start_path)
+        dirs_queue = deque(start_dirs)
+
+        repos = []
+
+        # it's our old friend, BFS!
+        while dirs_queue:
+            current_dir = dirs_queue.pop()
+
+            assert current_dir.is_dir()
+
+            # ignore hidden directories
+            if current_dir.stem.startswith("."):
+                continue
+
+            if pygit2.discover_repository(str(current_dir)) is not None:
+                repo = pygit2.Repository(current_dir)
+
+                if repo.head_is_unborn:
+                    continue
+
+                repos.append(repo)
+                continue
+
+            dirs_queue.extendleft(get_subdirs(current_dir))
+            
+
+        return repos
+
+    def file_ignored(self, filepath: str, repo: pygit2.Repository | None = None):
         if repo is not None and repo.path_is_ignored(filepath):
             return True
 
@@ -214,7 +241,6 @@ class RepoScanner:
     ):
         contained_files: list[pygit2.Blob] = []
         for item in tree_root:
-
             if item.name is None:
                 continue
 
@@ -235,7 +261,6 @@ class RepoScanner:
         start_date: datetime.date,
         end_date: datetime.date | None,
     ) -> dict[datetime.date, dict[str, int]]:
-
         if isinstance(path_root, str):
             path_root = Path(path_root)
 
@@ -260,7 +285,6 @@ class RepoScanner:
         start_date: datetime.date,
         end_date: datetime.date | None = None,
     ) -> dict[datetime.date, dict[str, int]]:
-
         if repo.head_is_unborn:
             return {}
 
@@ -280,7 +304,6 @@ class RepoScanner:
 
         totals: dict[datetime.date, dict[str, int]] = {}
         for d in iter_days(start_date, end_date):
-
             day_results = [
                 self.files_line_sum(repo, c) for c in self.get_date_commits(repo, d)
             ]
@@ -295,7 +318,6 @@ class RepoScanner:
 
 
 def run():
-
     ignore_config = [r".*\.txt", r".*\.md", r".*\.rst", r".*\.toml", r".*\.json"]
 
     w = RepoScanner(ignore_patterns=ignore_config)

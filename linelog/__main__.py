@@ -54,7 +54,7 @@ def main():
     r = RepoScanner(username=username, ignore_patterns=ignore_config)
 
     console = Console()
-    spinner = console.status("[green]Scanning repositories...", spinner="arc")
+    spinner = console.status("[green]Scanning repositories...", spinner="dots10")
 
     spinner.start()
     total_data = r.get_path_stats(args.start_dir, start_date, end_date)
