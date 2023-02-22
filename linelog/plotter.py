@@ -7,10 +7,8 @@ from datetime import date
 
 from shutil import get_terminal_size
 
-from log_util import get_interval_repo_lines
 
 
-from os import getcwd
 
 
 def format_for_plot(data: dict[date, dict[str, int]]):
@@ -41,9 +39,12 @@ def make_figure(data: dict[date, dict[str, int]]) -> pl.Figure:
     fig.width = min(term_width // 2, (len(data) * 8))
     fig.height = term_height // 3
 
+
     fig.set_y_limits(min_=0)
 
-    fig.set_x_limits(min_=min(data), max_=max(data))
+    if not min(data) == max(data):
+
+        fig.set_x_limits(min_=min(data), max_=max(data))
 
     fig.register_label_formatter(date, date_formatter)
     fig.y_label = "lines"

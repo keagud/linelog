@@ -3,8 +3,11 @@ from itertools import dropwhile
 import datetime
 from datetime import date, datetime as dt
 import json
-from os.path import splitext
+import os
+from os.path import isdir, splitext
 from os import getcwd
+from pathlib import Path
+from typing import Any
 
 from functools import reduce
 from itertools import pairwise
@@ -13,6 +16,28 @@ from itertools import pairwise
 import pygit2
 
 from sloc import sloc_from_text
+
+
+def sum_dict_items(a: Any, b: Any):
+
+    assert not (a is None and b is None)
+
+    if a is None:
+        return b
+
+    if b is None:
+        return a
+
+    assert type(a) == type(b)
+
+    if isinstance(a, int):
+        return a + b
+
+    assert isinstance(a, dict)
+
+    common_keys = a.keys() | b.keys()
+
+    return {k: sum_dict_items(a.get(k), b.get(k)) for k in common_keys}
 
 
 def _is_commit_on_date(commit: pygit2.Commit, target_date: datetime.date) -> bool:
@@ -32,6 +57,14 @@ def _compare_commit_totals(
 
 
 def _sum_dicts(d1: dict, d2: dict):
+
+    assert type(d1) == type(d2)
+
+    combiner = lambda x, y: x + y
+
+    if type(d1) == dict[str, dict]:
+        combiner = _sum_dicts
+
     combined = {k: d1.get(k, 0) + d2.get(k, 0) for k in d1.keys() | d2.keys()}
 
     # remove entries with a zero value
@@ -123,13 +156,14 @@ class RepoScanner:
 
     def files_line_sum(
         self,
+        repo: pygit2.Repository,
         commit: pygit2.Commit | None,
     ):
 
         if commit is None:
             return {}
 
-        commit_files = self.get_tree_files(commit.tree)
+        commit_files = self.get_tree_files(repo, commit.tree)
 
         data_by_type: dict[str, int] = {}
 
@@ -156,8 +190,17 @@ class RepoScanner:
 
         return data_by_type
 
+    def file_ignored(self, filepath: str, repo: pygit2.Repository | None = None):
+
+        if repo is not None and repo.path_is_ignored(filepath):
+            return False
+
+        matched_ignores = map(lambda p: re.match(p, filepath), self.ignore_patterns)
+        return any(matched_ignores)
+
     def get_tree_files(
         self,
+        repo: pygit2.Repository,
         tree_root: pygit2.Tree,
     ):
         contained_files: list[pygit2.Blob] = []
@@ -166,30 +209,59 @@ class RepoScanner:
             if item.name is None:
                 continue
 
-            matched_ignores = map(
-                lambda p: re.match(p, str(item.name)), self.ignore_patterns
-            )
-
-            if any(matched_ignores):
+            if self.file_ignored(item.name, repo=repo):
                 continue
 
             if isinstance(item, pygit2.Blob) and not item.is_binary:
                 contained_files.append(item)
 
             elif isinstance(item, pygit2.Tree):
-                contained_files.extend(self.get_tree_files(item))
+                contained_files.extend(self.get_tree_files(repo, item))
 
         return contained_files
 
+    def get_path_stats(
+        self,
+        repo_path: str,
+        start_date: datetime.date,
+        end_date: datetime.date | None,
+        recursive: bool = True,
+        parent_repo: pygit2.Repository | None = None,
+    ) -> dict[datetime.date, dict[str, int]]:
+
+        path_totals: dict[datetime.date, dict[str, int]] = {}
+
+        if self.file_ignored(repo_path, repo=parent_repo):
+            return path_totals
+
+        if pygit2.discover_repository(repo_path) is not None:
+            repo = pygit2.Repository(repo_path)
+
+            repo_stats = self.get_repo_stats(repo, start_date, end_date)
+            path_totals = sum_dict_items(path_totals, repo_stats)
+
+        if not recursive:
+            return path_totals
+
+        for subdir in os.scandir(repo_path):
+
+            print(subdir.path)
+            if not subdir.is_dir():
+                continue
+
+            subdir_stats = self.get_path_stats(
+                subdir.path, start_date, end_date, recursive=recursive
+            )
+            path_totals = sum_dict_items(path_totals, subdir_stats)
+
+        return path_totals
+
     def get_repo_stats(
         self,
-        repo: pygit2.Repository | str,
+        repo: pygit2.Repository,
         start_date: datetime.date,
         end_date: datetime.date | None = None,
     ) -> dict[datetime.date, dict[str, int]]:
-
-        if isinstance(repo, str):
-            repo = pygit2.Repository(repo)
 
         if end_date is None:
             end_date = start_date + datetime.timedelta(days=1)
@@ -209,7 +281,7 @@ class RepoScanner:
         for d in iter_days(start_date, end_date):
 
             day_results = [
-                self.files_line_sum(c) for c in self.get_date_commits(repo, d)
+                self.files_line_sum(repo, c) for c in self.get_date_commits(repo, d)
             ]
 
             commit_line_changes = [
@@ -227,9 +299,6 @@ def run():
 
     w = RepoScanner(ignore_patterns=ignore_config)
     current = getcwd()
-
-    s = w.get_repo_stats(current, date.today(), date(2023, 2, 10))
-    print(s)
 
 
 if __name__ == "__main__":
