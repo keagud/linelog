@@ -193,7 +193,7 @@ class RepoScanner:
     def file_ignored(self, filepath: str, repo: pygit2.Repository | None = None):
 
         if repo is not None and repo.path_is_ignored(filepath):
-            return False
+            return True
 
         matched_ignores = map(lambda p: re.match(p, filepath), self.ignore_patterns)
         return any(matched_ignores)
@@ -222,39 +222,30 @@ class RepoScanner:
 
     def get_path_stats(
         self,
-        repo_path: str,
+        path_root: Path | str,
         start_date: datetime.date,
         end_date: datetime.date | None,
-        recursive: bool = True,
-        parent_repo: pygit2.Repository | None = None,
     ) -> dict[datetime.date, dict[str, int]]:
+
+        if isinstance(path_root, str):
+            path_root = Path(path_root)
+
+        print(path_root)
+
+        assert path_root.is_dir()
 
         path_totals: dict[datetime.date, dict[str, int]] = {}
 
-        if self.file_ignored(repo_path, repo=parent_repo):
+        if pygit2.discover_repository(str(path_root)) is None:
+            for subdir in filter(lambda p: p.is_dir(), path_root.iterdir()):
+                subdir_totals = self.get_path_stats(subdir, start_date, end_date)
+                path_totals = sum_dict_items(path_totals, subdir_totals)
+
             return path_totals
 
-        if pygit2.discover_repository(repo_path) is not None:
-            repo = pygit2.Repository(repo_path)
+        repo = pygit2.Repository(str(path_root))
 
-            repo_stats = self.get_repo_stats(repo, start_date, end_date)
-            path_totals = sum_dict_items(path_totals, repo_stats)
-
-        if not recursive:
-            return path_totals
-
-        for subdir in os.scandir(repo_path):
-
-            print(subdir.path)
-            if not subdir.is_dir():
-                continue
-
-            subdir_stats = self.get_path_stats(
-                subdir.path, start_date, end_date, recursive=recursive
-            )
-            path_totals = sum_dict_items(path_totals, subdir_stats)
-
-        return path_totals
+        return self.get_repo_stats(repo, start_date, end_date)
 
     def get_repo_stats(
         self,

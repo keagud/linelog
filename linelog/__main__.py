@@ -6,6 +6,7 @@ from datetime import timedelta
 from os import getcwd
 
 import pygit2
+from pprint import pprint
 
 from log_util import RepoScanner
 from log_util import get_global_username
@@ -45,7 +46,7 @@ def main():
     days_count = max(args.days, 3)
 
     start_date = date.today() - timedelta(days =  days_count)
-    end_date = date.today()
+    end_date = date.today() + timedelta(days=1)
 
     r = RepoScanner(username=username, ignore_patterns=ignore_config)
     total_data = r.get_path_stats(args.start_dir, start_date, end_date)
@@ -53,6 +54,10 @@ def main():
     fig = make_figure(total_data)
     fig.show()
     print(fig.show())
+
+    pprint(total_data)
+
+    
 
 
 if __name__ == "__main__":
