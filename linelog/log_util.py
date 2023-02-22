@@ -110,7 +110,15 @@ class RepoScanner:
         if user is None:
             user = self.username
 
-        last = repo[repo.head.target]
+        try:
+            last = repo[repo.head.target]
+
+        except Exception as e:
+            from pprint import pprint
+            pprint(repo.path)
+            raise e
+            pass
+
         day_commits = []
 
         walker = repo.walk(last.id, pygit2.GIT_SORT_TIME)
@@ -176,7 +184,10 @@ class RepoScanner:
 
             cleaned_ext = ext.strip(".").lower()
 
-            matched_filetype = self.filetypes_db.get(cleaned_ext, "Unknown")
+            matched_filetype: str | None = self.filetypes_db.get(cleaned_ext)
+
+            if matched_filetype is None:
+                continue
 
             file_lines = sloc_from_text(filename, file.data)
 
@@ -249,6 +260,9 @@ class RepoScanner:
         start_date: datetime.date,
         end_date: datetime.date | None = None,
     ) -> dict[datetime.date, dict[str, int]]:
+
+        if repo.head_is_unborn:
+            return {}
 
         if end_date is None:
             end_date = start_date + datetime.timedelta(days=1)
