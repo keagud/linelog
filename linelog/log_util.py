@@ -13,16 +13,11 @@ import os
 from os.path import splitext
 import json
 from pprint import pprint
-
-
-class ThreadContext(NamedTuple):
-    start_path: Path
-    start_date: date
-    days: int
-    username: str
-    ignore_config: dict[str, re.Pattern]
-    ignore_exts: list[str]
-    ignore_file_patterns: list[str]
+from itertools import pairwise
+from collections import deque
+from copy import deepcopy
+import multiprocessing
+from concurrent import futures
 
 
 def get_global_username() -> str:
@@ -32,10 +27,6 @@ def get_global_username() -> str:
 
 def sum_dict_items(a: Any, b: Any):
     assert not (a is None and b is None)
-
-    print(type(a))
-    pprint(a)
-    pprint(b)
 
     if a is None:
         return b
@@ -52,7 +43,7 @@ def sum_dict_items(a: Any, b: Any):
 
     common_keys = a.keys() | b.keys()
 
-    return {k: sum_dict_items(a.get(k), b.get(k)) for k in common_keys}
+    return {k: v for k in common_keys if (v := sum_dict_items(a.get(k), b.get(k)))}
 
 
 def sloc_from_text(
@@ -89,6 +80,7 @@ def get_tree_files(
 
         _, ext = splitext(filename)
 
+        ext = ext.strip(".")
         if ext in ignore_config.get("extensions", []):
             continue
 
@@ -119,10 +111,6 @@ def blob_stats(
     ignore_config: dict[str, Any],
 ) -> dict[str, int]:
     data_by_type: dict[str, int] = {}
-
-    from pprint import pprint
-
-    pprint(ignore_config)
 
     for file in files:
         if not file.name:
@@ -246,13 +234,16 @@ def get_interval_commits(repo: Repository, start_date: date, end_date: date, use
 
 
 def get_interval_stats(
-    repo: Repository,
+    repo: Repository | Path,
     start_date: date,
     end_date: date,
     user: str,
     filetypes_db: dict[str, str],
     ignore_config: dict[str, Any],
 ) -> dict[date, dict[str, int]]:
+    if isinstance(repo, Path):
+        repo = pygit2.Repository(repo)
+
     interval_commits = get_interval_commits(repo, start_date, end_date, user)
 
     stats = partial(
@@ -262,31 +253,101 @@ def get_interval_stats(
         ignore_config=ignore_config,
     )
 
+    def sum_stats(earlier_stats: dict[str, int], later_stats: dict[str, int]):
+        keys = earlier_stats.keys() | later_stats.keys()
+
+        return {
+            k: max(later_stats.get(k, 0) - earlier_stats.get(k, 0), 0) for k in keys
+        }
+
     totals = {}
     for d, l in interval_commits.items():
         day_total: dict[str, int] = {}
-        for c in l:
-            s = stats(commit=c)
-            day_total = sum_dict_items(day_total, s)
+
+        for earlier, later in pairwise(reversed(l)):
+            combined = sum_stats(stats(commit=earlier), stats(commit=later))
+            day_total = sum_dict_items(day_total, combined)
 
         totals[d] = day_total
 
     return totals
 
-    return {
-        d: reduce(sum_dict_items, [stats(commit=c) for c in l], {})
-        for d, l in interval_commits.items()
-    }
+
+class RepoScanner:
+    def __init__(self, username: str, ignore_config: dict):
+        with open("filetypes.json", "r") as filetypes_file:
+            self.filetypes_db = json.load(filetypes_file)
+
+        self.ignore_config = ignore_config
+
+        self.username = username
+
+    def find_repo_paths(self, startpath_str: str) -> list[Path]:
+        startpath = Path(startpath_str).expanduser().resolve()
+
+        def get_subdirs(p: Path):
+            return list(filter(lambda x: x.is_dir(), p.iterdir()))
+
+        start_dirs = get_subdirs(startpath)
+        dirs_queue = deque(start_dirs)
+
+        repos = []
+
+        while dirs_queue:
+            current_dir = dirs_queue.pop()
+
+            assert current_dir.is_dir()
+
+            if pygit2.discover_repository(str(current_dir)) is not None:
+                repo = pygit2.Repository(current_dir)
+
+                if repo.head_is_unborn:
+                    continue
+
+                repos.append(current_dir)
+                continue
+
+            dirs_queue.extendleft(get_subdirs(current_dir))
+
+        return repos
+
+    def make_finder(self, path: Path, start_date: date, end_date: date):
+        username = deepcopy(self.username)
+
+        filetypes_db = deepcopy(self.filetypes_db)
+        ignore_config = deepcopy(self.ignore_config)
+
+        return partial(
+            get_interval_stats,
+            path,
+            start_date,
+            end_date,
+            username,
+            filetypes_db,
+            ignore_config,
+        )
+
+    def scan_path(self, start_dir: str, start_date: date, end_date: date):
+        repos = self.find_repo_paths(start_dir)
+
+        sf = partial(self.make_finder, start_date=start_date, end_date=end_date)
+
+        with futures.ProcessPoolExecutor() as executor:
+            results = reduce(sum_dict_items, (s() for s in executor.map(sf, repos)))
+        return results
+
+
+#        pprint(results)
 
 
 def main():
     ignore_extensions = [
-        r".*\.txt",
-        r".*\.md",
-        r".*\.rst",
-        r".*\.toml",
-        r".*\.json",
-        r".*\.yaml",
+        "txt",
+        "md",
+        "rst",
+        "toml",
+        "json",
+        "yml",
     ]
 
     ignore_patterns = [
@@ -295,26 +356,19 @@ def main():
         "dist/",
     ]
 
-    line_patterns_any = [r"/\*.*\*/", r"^\s*#$", r"^\s*$"]
+    line_patterns_any = [r"/\*.*\*/", r"^\s*#$", r"^\s*$", r"#.*$"]
 
     test_ignore_config = {
-        "extensions": [re.compile(p) for p in ignore_extensions],
+        "extensions": ignore_extensions,
         "patterns": [re.compile(p) for p in ignore_patterns],
         "lines": {
             "any": [re.compile(p, flags=re.MULTILINE) for p in line_patterns_any]
         },
     }
 
-    with open("filetypes.json", "r") as infile:
-        ftypes_db = json.load(infile)
+    r = RepoScanner("keagud", test_ignore_config)
 
-    r = pygit2.Repository(os.getcwd())
-
-    get_interval_stats(
-        r, date(2023, 2, 15), date.today(), "keagud", ftypes_db, test_ignore_config
-    )
-
-    print("a")
+    r.scan_path("~", date(2023, 2, 15), date.today())
 
 
 if __name__ == "__main__":
