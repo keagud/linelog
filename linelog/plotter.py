@@ -1,9 +1,11 @@
 from datetime import date
 from shutil import get_terminal_size
+from functools import reduce
 
 import plotille as pl
-import pygit2
 import rich
+from rich.table import Table
+from log_util import sum_dict_items
 
 
 def format_for_plot(data: dict[date, dict[str, int]]):
@@ -34,7 +36,6 @@ def make_figure(data: dict[date, dict[str, int]]) -> pl.Figure:
     fig.width = min(term_width // 2, (len(data) * 8))
     fig.height = term_height // 3
 
-
     fig.set_y_limits(min_=0)
 
     if not min(data) == max(data):
@@ -52,6 +53,33 @@ def make_figure(data: dict[date, dict[str, int]]) -> pl.Figure:
 
     return fig
 
+
+def make_table(data: dict[date, dict[str, int]]):
+
+    total_lines = sum([sum(d.values()) for d in data.values()])
+
+    language_totals = reduce(sum_dict_items, data.values())
+
+    table = Table(show_header=True, header_style="bold green")
+    table.add_column("Language")
+    table.add_column("Lines")
+    table.add_column("Proportion", style="dim italic")
+
+
+    lang_tuples = [(k,v) for k,v in language_totals.items()]
+
+    lang_tuples.sort(key=lambda x: x[1], reverse=True)
+
+
+    for language, lines in lang_tuples:
+        prop = f"{(lines / total_lines) * 100:.2f}%"
+        table.add_row(f"[dim]{language}", f"[dim]{lines}", prop)
+
+    linestr = str(total_lines)
+
+    table.add_row("[default][bold cyan]Total", f"[bold]{linestr}", "") 
+
+    return table
 
 
 

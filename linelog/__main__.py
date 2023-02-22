@@ -4,10 +4,12 @@ from datetime import date, timedelta
 from os import getcwd
 from pprint import pprint
 
+from rich import print as rprint
 from rich.console import Console
 
 from log_util import RepoScanner, get_global_username
 from plotter import make_figure
+from plotter import make_table
 
 cli_parser = argparse.ArgumentParser()
 cli_parser.add_argument("start_dir", nargs="?")
@@ -24,6 +26,7 @@ def main():
         r".*\.rst",
         r".*\.toml",
         r".*\.json",
+        r".*\.yaml",
         "Example/",
         "build/",
         "dist/",
@@ -61,7 +64,11 @@ def main():
     fig.show()
     print(fig.show())
 
-    pprint(total_data)
+    table = make_table(total_data)
+    rprint(table)
+
+
+    
 
 
 if __name__ == "__main__":
