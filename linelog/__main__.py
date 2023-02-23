@@ -19,24 +19,20 @@ def main():
     cli_parser = get_parser()
     args = cli_parser.parse_args()
 
+    pprint(args)
+
     if args.start_dir is None:
         args.start_dir = getcwd()
-
-    
 
     if args.username:
         username = args.username
 
-    else: 
+    else:
         username = get_global_username()
-
 
     config = read_config()
 
     days_count = args.days
-
-    days_count = 10
-    args.start_dir = "/home/k"
 
     start_date = date.today() - timedelta(days=days_count)
     end_date = date.today() + timedelta(days=1)

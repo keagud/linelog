@@ -17,11 +17,11 @@ extensions:
 
 # Ignore any directory that regex matches these patterns
 
-patterns:
+patterns: 
 - Example/
 - build/
 - dist/
--\..*/
+- \..*/
 
 # language specific rules for line counting
 # the below regex patterns are removed before lines are counted
@@ -45,7 +45,13 @@ lines:
 
     python,shell:
   # octothorpe comments 
-      - #.*$ # 
+    - #.*$ # 
+
+    scheme, Common Lisp:
+    - ;;.*$
+
+
         
+
 
 

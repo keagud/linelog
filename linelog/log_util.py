@@ -16,7 +16,6 @@ from pprint import pprint
 from itertools import pairwise
 from collections import deque
 from copy import deepcopy
-import multiprocessing
 from concurrent import futures
 
 
@@ -57,7 +56,7 @@ def sloc_from_text(
 
     # get rid of c -style /**/ comments
 
-    for pattern in line_spec:
+    for pattern in (p for p in line_spec if p):
         src_text = re.sub(pattern, "", src_text)
 
     # get lines with 2 or more non-whitespace characters
@@ -128,8 +127,10 @@ def blob_stats(
         if matched_filetype is None:
             continue
 
+        filetype_key = matched_filetype.replace(" ", "-").lower()
+
         filetype_ignores = ignore_config["lines"].get("any", [])
-        filetype_ignores_ext = ignore_config["lines"].get(cleaned_ext, [])
+        filetype_ignores_ext = ignore_config["lines"].get(filetype_key, [])
 
         filetype_ignores.extend(filetype_ignores_ext)
 
@@ -198,8 +199,6 @@ def get_date_commits(
     # get all commits from a given day, _plus_ one commit earlier
     # so that line comparison between files still works if a day
     # only has one commit
-
-    #import pdb; pdb.set_trace()
 
     for commit in dropwhile(lambda c: c.commit_time > interval_max.timestamp(), walker):
         if not compare_names(commit, user):
@@ -298,10 +297,9 @@ class RepoScanner:
         while dirs_queue:
             current_dir = dirs_queue.pop()
 
-
             assert current_dir.is_dir()
 
-            if current_dir.stem.startswith('.'):
+            if current_dir.stem.startswith("."):
                 continue
 
             if pygit2.discover_repository(str(current_dir)) is not None:
@@ -341,9 +339,6 @@ class RepoScanner:
         with futures.ProcessPoolExecutor() as executor:
             results = reduce(sum_dict_items, (s() for s in executor.map(sf, repos)))
         return results
-
-
-#        pprint(results)
 
 
 def main():
