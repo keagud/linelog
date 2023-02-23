@@ -1,10 +1,10 @@
 from datetime import date
-from shutil import get_terminal_size
 from functools import reduce
+from shutil import get_terminal_size
 
 import plotille as pl
-import rich
 from rich.table import Table
+
 from log_util import sum_dict_items
 
 
@@ -20,7 +20,6 @@ def format_for_plot(data: dict[date, dict[str, int]]):
 
 
 def date_formatter(val: date, chars: int, delta, left: bool = False):
-
     date_str = f"{val.month}/{val.day}"
     return "{0:{1}s}".format(date_str, chars, "<" if left else "")
 
@@ -39,7 +38,6 @@ def make_figure(data: dict[date, dict[str, int]]) -> pl.Figure:
     fig.set_y_limits(min_=0)
 
     if not min(data) == max(data):
-
         fig.set_x_limits(min_=min(data), max_=max(data))
 
     fig.register_label_formatter(date, date_formatter)
@@ -55,7 +53,6 @@ def make_figure(data: dict[date, dict[str, int]]) -> pl.Figure:
 
 
 def make_table(data: dict[date, dict[str, int]]):
-
     total_lines = sum([sum(d.values()) for d in data.values()])
 
     language_totals = reduce(sum_dict_items, data.values())
@@ -65,11 +62,9 @@ def make_table(data: dict[date, dict[str, int]]):
     table.add_column("Lines")
     table.add_column("Proportion", style="dim italic")
 
-
-    lang_tuples = [(k,v) for k,v in language_totals.items()]
+    lang_tuples = [(k, v) for k, v in language_totals.items()]
 
     lang_tuples.sort(key=lambda x: x[1], reverse=True)
-
 
     for language, lines in lang_tuples:
         prop = f"{(lines / total_lines) * 100:.2f}%"
@@ -77,9 +72,6 @@ def make_table(data: dict[date, dict[str, int]]):
 
     linestr = str(total_lines)
 
-    table.add_row("[default][bold cyan]Total", f"[bold]{linestr}", "") 
+    table.add_row("[default][bold cyan]Total", f"[bold]{linestr}", "")
 
     return table
-
-
-

@@ -1,29 +1,30 @@
-import pygit2
-from pygit2 import Repository, Commit, Blob, Tree
-import re
-from re import Pattern
-from typing import Callable, Any
-from typing import NamedTuple
 import datetime
-from datetime import date
-from pathlib import Path
-from itertools import dropwhile
-from functools import reduce, partial
-import os
-from os.path import splitext
 import json
-from pprint import pprint
-from itertools import pairwise
+import re
 from collections import deque
-from copy import deepcopy
 from concurrent import futures
+from copy import deepcopy
+from datetime import date
+from functools import partial, reduce
+from itertools import dropwhile, pairwise
+from os.path import splitext
+from pathlib import Path
+from re import Pattern
+from typing import Any
+
+import pygit2
+from pygit2 import Blob, Commit, GitError, Repository, Tree
 
 
-def get_global_username() -> str:
-    config = pygit2.Config.get_global_config()
-    return config._get_entry("user.name").value
+def get_global_username() -> str | None:
+    try:
+        config = pygit2.Config.get_global_config()
+        return config._get_entry("user.name").value
+    except GitError | KeyError:
+        return None
 
 
+# TODO convert to single dispatch
 def sum_dict_items(a: Any, b: Any):
     assert not (a is None and b is None)
 
@@ -169,7 +170,7 @@ def get_commit_stats(
 def get_date_commits(
     repo: pygit2.Repository,
     target_date: date,
-    user: str,
+    user: str | None,
 ) -> list[pygit2.Commit | None]:
     last = repo[repo.head.target]
     day_commits = []
@@ -219,7 +220,9 @@ def get_date_commits(
     return day_commits
 
 
-def get_interval_commits(repo: Repository, start_date: date, end_date: date, user: str):
+def get_interval_commits(
+    repo: Repository, start_date: date, end_date: date, user: str | None
+):
     def iter_days(start: datetime.date, end: datetime.date):
         days = end.toordinal() - start.toordinal()
 
@@ -238,7 +241,7 @@ def get_interval_stats(
     repo: Repository | Path,
     start_date: date,
     end_date: date,
-    user: str,
+    user: str | None,
     filetypes_db: dict[str, str],
     ignore_config: dict[str, Any],
 ) -> dict[date, dict[str, int]]:
@@ -275,7 +278,7 @@ def get_interval_stats(
 
 
 class RepoScanner:
-    def __init__(self, username: str, ignore_config: dict):
+    def __init__(self, ignore_config: dict, username: str | None = None):
         with open("filetypes.json", "r") as filetypes_file:
             self.filetypes_db = json.load(filetypes_file)
 
@@ -283,14 +286,13 @@ class RepoScanner:
 
         self.username = username
 
-    def find_repo_paths(self, startpath_str: str) -> list[Path]:
+    def find_repo_paths(self, startpath_str: str, recursive: bool = True) -> list[Path]:
         startpath = Path(startpath_str).expanduser().resolve()
 
         def get_subdirs(p: Path):
             return list(filter(lambda x: x.is_dir(), p.iterdir()))
 
-        start_dirs = get_subdirs(startpath)
-        dirs_queue = deque(start_dirs)
+        dirs_queue = deque([startpath])
 
         repos = []
 
@@ -311,7 +313,8 @@ class RepoScanner:
                 repos.append(current_dir)
                 continue
 
-            dirs_queue.extendleft(get_subdirs(current_dir))
+            if recursive:
+                dirs_queue.extendleft(get_subdirs(current_dir))
 
         return repos
 
@@ -331,46 +334,17 @@ class RepoScanner:
             ignore_config,
         )
 
-    def scan_path(self, start_dir: str, start_date: date, end_date: date):
-        repos = self.find_repo_paths(start_dir)
+    def scan_path(
+        self, start_dir: str, start_date: date, end_date: date, recursive: bool = True
+    ):
+        repos = self.find_repo_paths(start_dir, recursive=recursive)
 
-        sf = partial(self.make_finder, start_date=start_date, end_date=end_date)
+        if not repos:
+            return None
+
+        eval_repo = partial(self.make_finder, start_date=start_date, end_date=end_date)
 
         with futures.ProcessPoolExecutor() as executor:
-            results = reduce(sum_dict_items, (s() for s in executor.map(sf, repos)))
+            evaluated_repos = (s() for s in executor.map(eval_repo, repos))
+            results = reduce(sum_dict_items, evaluated_repos)
         return results
-
-
-def main():
-    ignore_extensions = [
-        "txt",
-        "md",
-        "rst",
-        "toml",
-        "json",
-        "yml",
-    ]
-
-    ignore_patterns = [
-        "Example/",
-        "build/",
-        "dist/",
-    ]
-
-    line_patterns_any = [r"/\*.*\*/", r"^\s*#$", r"^\s*$", r"#.*$"]
-
-    test_ignore_config = {
-        "extensions": ignore_extensions,
-        "patterns": [re.compile(p) for p in ignore_patterns],
-        "lines": {
-            "any": [re.compile(p, flags=re.MULTILINE) for p in line_patterns_any]
-        },
-    }
-
-    r = RepoScanner("keagud", test_ignore_config)
-
-    r.scan_path("~", date(2023, 2, 15), date.today())
-
-
-if __name__ == "__main__":
-    main()
