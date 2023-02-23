@@ -1,0 +1,51 @@
+
+# This config file was generated when the linelog program first ran
+# Edit it as you wish!
+ 
+
+# Always ignore files with these extensions
+extensions:
+- txt
+- md
+- rst
+- toml
+- json
+- yaml
+- html
+- yml
+- tex
+
+# Ignore any directory that regex matches these patterns
+
+patterns:
+- Example/
+- build/
+- dist/
+-\..*/
+
+# language specific rules for line counting
+# the below regex patterns are removed before lines are counted
+# the matching is multiline, so use ^$ for single line patterns
+# multiple comma-separated languages can share patterns
+
+lines:
+
+    any:
+  # the 'any' field is used for all filetypes 
+  # the default pattern strips whitespace lines
+    - ^\s*$
+
+    c,rust,c++:
+
+  # /* c-style comments */
+    - /\*\.\*/  
+
+  # //c++ style single line comments
+    - //.*$   
+
+    python,shell:
+  # octothorpe comments 
+      - #.*$ # 
+        
+
+

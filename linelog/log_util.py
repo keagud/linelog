@@ -199,6 +199,8 @@ def get_date_commits(
     # so that line comparison between files still works if a day
     # only has one commit
 
+    #import pdb; pdb.set_trace()
+
     for commit in dropwhile(lambda c: c.commit_time > interval_max.timestamp(), walker):
         if not compare_names(commit, user):
             continue
@@ -296,7 +298,11 @@ class RepoScanner:
         while dirs_queue:
             current_dir = dirs_queue.pop()
 
+
             assert current_dir.is_dir()
+
+            if current_dir.stem.startswith('.'):
+                continue
 
             if pygit2.discover_repository(str(current_dir)) is not None:
                 repo = pygit2.Repository(current_dir)
