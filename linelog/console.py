@@ -2,7 +2,6 @@
 
 import sys
 from datetime import date, timedelta
-from importlib.resources import as_file
 from os import path
 
 from rich import print as rprint
@@ -46,9 +45,9 @@ def run():
     )
     spinner.stop()
 
-    if total_data is None:
+    if not total_data:
         rprint(
-            f"[bold red]No repositories could be found at {args.start_dir} \n(use the -r flag to search subdirectories)"
+            f"[bold red]No repositories matching criteria could be found at {args.start_dir}"
         )
         sys.exit(1)
 

@@ -1,10 +1,11 @@
+import collections
 import datetime
+import functools
 import json
 import re
-import collections
+
 from concurrent import futures
 from datetime import date
-import functools
 from functools import reduce
 from importlib import resources
 from itertools import dropwhile, pairwise

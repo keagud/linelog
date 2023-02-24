@@ -5,7 +5,7 @@ from shutil import get_terminal_size
 import plotille as pl
 from rich.table import Table
 
-from .log_util import sum_dict_items
+from .log_util import sum_dicts
 
 
 def format_for_plot(data: dict[date, dict[str, int]]):
@@ -55,7 +55,7 @@ def make_figure(data: dict[date, dict[str, int]]) -> pl.Figure:
 def make_table(data: dict[date, dict[str, int]]):
     total_lines = sum([sum(d.values()) for d in data.values()])
 
-    language_totals = reduce(sum_dict_items, data.values())
+    language_totals = reduce(sum_dicts, data.values())
 
     table = Table(show_header=True, header_style="bold green")
     table.add_column("Language")
