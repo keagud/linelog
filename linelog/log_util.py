@@ -1,12 +1,11 @@
 import datetime
 import json
 import re
-
-from collections import deque
+import collections
 from concurrent import futures
 from datetime import date
-from functools import cache, partial, reduce
-from functools import singledispatch
+import functools
+from functools import reduce
 from importlib import resources
 from itertools import dropwhile, pairwise
 from os.path import splitext
@@ -26,59 +25,47 @@ def get_global_username() -> str | None:
         return None
 
 
-# TODO convert to single dispatch
-def sum_dict_items(a: Any, b: Any):
-    assert not (a is None and b is None)
+@functools.singledispatch
+def sum_dict_items(a: int | dict, b: int | dict) -> dict | int:
+    if not (a is None and b is None):
+        if a is None:
+            return b
 
-    if a is None:
-        return b
+        if b is None:
+            return a
 
-    if b is None:
-        return a
-
-    assert type(a) == type(b)
-
-    if isinstance(a, int):
-        return a + b
-
-    assert isinstance(a, dict)
-
-    common_keys = a.keys() | b.keys()
-
-    return {k: v for k in common_keys if (v := sum_dict_items(a.get(k), b.get(k)))}
-
-
-@singledispatch
-def sum_dict_items2(a, b):
-    if a is None and b is None:
-        return {}
-
-    if a is None:
-        return b
-
-    if b is None:
-        return a
-
-
-@sum_dict_items2.register
-def _(a: dict[str, int], b: dict[str, int]) -> dict[str, int]:
     return {}
 
 
-@sum_dict_items2.register
+@sum_dict_items.register
+def _(a: dict, b: dict) -> dict:
+    common_keys = a.keys() | b.keys()
+    return {k: v for k in common_keys if (v := sum_dict_items(a.get(k), b.get(k)))}
+
+
+@sum_dict_items.register
 def _(a: int, b: int) -> int:
-    return 0
+    # TODO gotta be a better way to express this
+    if a is None:
+        return b
+    if b is None:
+        return a
+
+    return a + b
 
 
-@cache
+def sum_dicts(a: dict, b: dict) -> dict:
+    common_keys = a.keys() | b.keys()
+    return {k: v for k in common_keys if (v := sum_dict_items(a.get(k), b.get(k)))}
+
+
+@functools.cache
 def sloc_from_text(src_text: str | bytes, line_spec: frozenset[Pattern]) -> int:
     try:
         if isinstance(src_text, bytes):
             src_text = src_text.decode()
     except UnicodeDecodeError:
         return 0
-
-    # get rid of c -style /**/ comments
 
     for pattern in (p for p in line_spec if p):
         src_text = re.sub(pattern, "", src_text)
@@ -184,7 +171,7 @@ def get_commit_stats(
     totals = {}
 
     for s in blob_stats_list:
-        totals = sum_dict_items(totals, s)
+        totals: dict = sum_dicts(totals, s)
 
     return totals
 
@@ -272,7 +259,7 @@ def get_interval_stats(
 
     interval_commits = get_interval_commits(repo, start_date, end_date, user)
 
-    stats = partial(
+    stats = functools.partial(
         get_commit_stats,
         repo=repo,
         filetypes_db=filetypes_db,
@@ -292,7 +279,7 @@ def get_interval_stats(
 
         for earlier, later in pairwise(reversed(l)):
             combined = sum_stats(stats(commit=earlier), stats(commit=later))
-            day_total = sum_dict_items(day_total, combined)
+            day_total = sum_dicts(day_total, combined)
 
         totals[d] = day_total
 
@@ -316,7 +303,7 @@ class RepoScanner:
         def get_subdirs(p: Path):
             return list(filter(lambda x: x.is_dir(), p.iterdir()))
 
-        dirs_queue = deque([startpath])
+        dirs_queue = collections.deque([startpath])
 
         repos = []
 
@@ -348,7 +335,7 @@ class RepoScanner:
         filetypes_db = self.filetypes_db
         ignore_config = self.ignore_config
 
-        return partial(
+        return functools.partial(
             get_interval_stats,
             path,
             start_date,
@@ -367,7 +354,9 @@ class RepoScanner:
             return None
 
         def eval_repo(r):
-            f = partial(self.make_finder, start_date=start_date, end_date=end_date)
+            f = functools.partial(
+                self.make_finder, start_date=start_date, end_date=end_date
+            )
             return f(r)()
 
         #        res = map(eval_repo, repos)
@@ -381,7 +370,7 @@ class RepoScanner:
                 repo_futures.append(x)
 
         results = reduce(
-            sum_dict_items, (r.result() for r in futures.as_completed(repo_futures))
+            sum_dicts, (r.result() for r in futures.as_completed(repo_futures))
         )
 
         return results
