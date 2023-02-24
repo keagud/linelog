@@ -1,11 +1,12 @@
 import datetime
 import json
 import re
+
 from collections import deque
 from concurrent import futures
-from copy import deepcopy
 from datetime import date
 from functools import cache, partial, reduce
+from functools import singledispatch
 from importlib import resources
 from itertools import dropwhile, pairwise
 from os.path import splitext
@@ -15,7 +16,6 @@ from typing import Any
 
 import pygit2
 from pygit2 import Blob, Commit, GitError, Repository, Tree
-from rich import print as rprint
 
 
 def get_global_username() -> str | None:
@@ -46,6 +46,28 @@ def sum_dict_items(a: Any, b: Any):
     common_keys = a.keys() | b.keys()
 
     return {k: v for k in common_keys if (v := sum_dict_items(a.get(k), b.get(k)))}
+
+
+@singledispatch
+def sum_dict_items2(a, b):
+    if a is None and b is None:
+        return {}
+
+    if a is None:
+        return b
+
+    if b is None:
+        return a
+
+
+@sum_dict_items2.register
+def _(a: dict[str, int], b: dict[str, int]) -> dict[str, int]:
+    return {}
+
+
+@sum_dict_items2.register
+def _(a: int, b: int) -> int:
+    return 0
 
 
 @cache
@@ -321,7 +343,7 @@ class RepoScanner:
         return repos
 
     def make_finder(self, path: Path, start_date: date, end_date: date):
-        username = deepcopy(self.username)
+        username = self.username
 
         filetypes_db = self.filetypes_db
         ignore_config = self.ignore_config
