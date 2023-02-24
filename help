@@ -1,0 +1,28 @@
+usage: _test.py [-h] [-u USERNAME] [-c] [-r] [-a] [-d DAYS] [start_dir]
+
+positional arguments:
+  start_dir             The directory to scan. Defaults to the current working
+                        directory if unspecified
+
+options:
+  -h, --help            show this help message and exit
+  -u USERNAME, --username USERNAME
+                        Limit the scan to commits by this username. If
+                        unspecified, the username set in the global git config
+                        file (if present) is used. If no username is given by
+                        either of these methods, or if the -c option is
+                        passed, all commits are considered regardless of
+                        author
+  -c, --all-commits     Consider all commits by any user. Overrides the
+                        --username option if present.
+  -r, --recursive       If no repository is found in the given directory,
+                        search all subdirectories recursively and consider any
+                        repositories found there. If the top level directory
+                        is a repository, this does nothing.
+  -a, --all             Start the scan in the home directory, and search all
+                        subdirectories for repositories. Same as 'linelog ~
+                        -r'
+  -d DAYS, --days DAYS  The number of days in the past to traverse when
+                        scanning a repository for relevant commits. If
+                        unspecified defaults to 1 (only today). The output
+                        graph is only generated if this is greater than one

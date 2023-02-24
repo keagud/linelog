@@ -15,6 +15,8 @@ extensions:
 - yml
 - tex
 - xml
+- asciidoc
+- adoc
 - bat
 
 # Ignore any directory that regex matches these patterns
@@ -36,6 +38,9 @@ lines:
   # the 'any' field is used for all filetypes 
   # the default pattern strips whitespace lines
     - ^\s*$
+
+  # ignore lines with 2 or fewer whitespace characters
+    - ^\S{,2}$
 
     c,rust,c++:
 

@@ -47,7 +47,7 @@ def make_figure(data: dict[date, dict[str, int]]) -> pl.Figure:
 
     fig.register_label_formatter(float, linescount_formatter)
 
-    fig.scatter(*format_for_plot(data), marker="*", lc="cyan")
+    fig.scatter(*format_for_plot(data), marker="+", lc="cyan")
 
     return fig
 
