@@ -4,10 +4,10 @@
 `linelog` is a CLI program that scans your local git repositories generates a summary of your total lines of code committed, broken down by language. For example, if I run `linelog -a` on my main desktop computer, it generates this:
 <image>
 
-This isn't very exiting since I've only written Python today. With the `-d` flag you can look back further in time, and see the results as a nice graph:
+This isn't very exciting since I've only written Python today. With the `-d` flag you can look back further in time, and see the results as a nice graph:
 <image>
 
-*Hey, wait a second!*, you exclaim, *This very project has more than <> lines of Python code, and most of it was committed in that very interval!* That's very astute of you, you have a real eagle eye. The discrepency comes from the fact that `linelog` does its best to count *logical* lines of code by skipping comments and whitespaces. You can customize what counts as a line for a given filetype; see the section on "Usage and Configuration <link>"
+*Hey, wait a second!*, you exclaim, *This very project has more than <> lines of Python code, and most of it was committed in that very interval!* That's very astute of you, you have a real eagle eye. The discrepency comes from the fact that `linelog` does its best to count *logical* lines of code by skipping comments and whitespaces. You can customize what counts as a line for a given filetype; see the section on [configuration](https://github.com/keagud/linelog#the-config-file)
 
 
 ## Installation
@@ -29,7 +29,8 @@ pipx install linelog
 
 - For the specified repository, iterate *pairwise* through all commits in the specified timeframe that have the specified author. 
 - For each pair of sequential commits, apply the pattern matches specified in the config to count the total lines for each file. Then subtract the earlier line count from the later.
-  - If the difference is *negative* (the later commit has fewer net lines), it is instead counted as zero. This is essentially the only part of the counting behavior that the user cannot edit directly, both for technical and philosophical reasons. The point of `linelog` is to get a broad sense of productivity over a timespan, using lines of code written as a proxy. It is *not* meant to work as a diff generator - there are many many tools out there for that!
+  - If the difference is *negative* (the later commit has fewer net lines), it is instead counted as zero. 
+  This is essentially the only part of the counting behavior that the user cannot edit directly, both for technical and philosophical reasons. The point of `linelog` is to get a broad sense of productivity over a timespan, using lines of code written as a proxy. It is *not* meant to work as a diff generator - there are many many tools out there for that!
 - Results for each filetype are collected and then summed for the final result. 
 
 ### Usage
