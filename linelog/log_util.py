@@ -5,18 +5,17 @@ from collections import deque
 from concurrent import futures
 from copy import deepcopy
 from datetime import date
-from functools import partial, reduce
+from functools import cache, partial, reduce
+from importlib import resources
 from itertools import dropwhile, pairwise
 from os.path import splitext
 from pathlib import Path
 from re import Pattern
 from typing import Any
-from importlib import resources
 
-from time import perf_counter
-from rich import print as rprint
 import pygit2
 from pygit2 import Blob, Commit, GitError, Repository, Tree
+from rich import print as rprint
 
 
 def get_global_username() -> str | None:
@@ -49,9 +48,8 @@ def sum_dict_items(a: Any, b: Any):
     return {k: v for k in common_keys if (v := sum_dict_items(a.get(k), b.get(k)))}
 
 
-def sloc_from_text(
-    src_text: str | bytes, line_spec: list[Pattern], min_chars: int
-) -> int:
+@cache
+def sloc_from_text(src_text: str | bytes, line_spec: frozenset[Pattern]) -> int:
     try:
         if isinstance(src_text, bytes):
             src_text = src_text.decode()
@@ -63,8 +61,7 @@ def sloc_from_text(
     for pattern in (p for p in line_spec if p):
         src_text = re.sub(pattern, "", src_text)
 
-    # get lines with 2 or more non-whitespace characters
-    valid_lines = [line for line in src_text.splitlines() if len(line) > min_chars]
+    valid_lines = [line for line in src_text.splitlines() if line]
 
     return len(valid_lines)
 
@@ -138,7 +135,7 @@ def blob_stats(
 
         filetype_ignores.extend(filetype_ignores_ext)
 
-        file_lines = sloc_from_text(file.data, filetype_ignores, 2)
+        file_lines = sloc_from_text(file.data, frozenset(filetype_ignores))
 
         if not matched_filetype in data_by_type:
             data_by_type[matched_filetype] = file_lines
@@ -248,13 +245,8 @@ def get_interval_stats(
     filetypes_db: dict[str, str],
     ignore_config: dict[str, Any],
 ) -> dict[date, dict[str, int]]:
-
-    s = perf_counter()
     if isinstance(repo, Path):
         repo = pygit2.Repository(repo)
-
-    rprint(f"[green]Starting {repo.path}")
-
 
     interval_commits = get_interval_commits(repo, start_date, end_date, user)
 
@@ -281,9 +273,6 @@ def get_interval_stats(
             day_total = sum_dict_items(day_total, combined)
 
         totals[d] = day_total
-
-    e = perf_counter()
-    rprint(f"[red bold]took {e - s:.2f} sec for {repo.path}")
 
     return totals
 
@@ -349,7 +338,7 @@ class RepoScanner:
 
     def scan_path(
         self, start_dir: str, start_date: date, end_date: date, recursive: bool = True
-    )->dict[date, dict[str,int]] | None:
+    ) -> dict[date, dict[str, int]] | None:
         repos = self.find_repo_paths(start_dir, recursive=recursive)
 
         if not repos:
@@ -359,19 +348,18 @@ class RepoScanner:
             f = partial(self.make_finder, start_date=start_date, end_date=end_date)
             return f(r)()
 
-        # f = partial(self.make_finder, start_date=start_date, end_date=end_date)
+        #        res = map(eval_repo, repos)
+        #        return reduce(sum_dict_items, res)
 
         with futures.ProcessPoolExecutor() as executor:
-            #            results = reduce(sum_dict_items, (s() for s in executor.map(eval_repo, repos, chunksize=2048)))
-
-            #            x = (executor.submit(eval_repo, r) for r in repos)
-
             repo_futures = []
             for r in repos:
                 f = self.make_finder(r, start_date, end_date)
                 x = executor.submit(f)
                 repo_futures.append(x)
 
-        results = reduce(sum_dict_items,  (r.result() for r in futures.as_completed(repo_futures)))
+        results = reduce(
+            sum_dict_items, (r.result() for r in futures.as_completed(repo_futures))
+        )
 
         return results

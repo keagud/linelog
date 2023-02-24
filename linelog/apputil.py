@@ -1,9 +1,10 @@
 import argparse
+import re
+from importlib import resources
 from os import getcwd
 from pathlib import Path
 from shutil import copyfile
 
-from importlib import resources
 import yaml
 
 from .log_util import get_global_username
@@ -74,6 +75,10 @@ def read_config() -> dict:
     with open(config_path, "r") as config_file:
         config = yaml.full_load(config_file)
 
+        config["patterns"] = frozenset(
+            [re.compile(p) for p in config.get("patterns", [])]
+        )
+
         lines_config: dict = config.get("lines", {})
 
         split_lines_config = {}
@@ -81,7 +86,9 @@ def read_config() -> dict:
         for lang, patterns in lines_config.items():
             split_lines_config.update(
                 {
-                    subentry.replace(" ", "-").lower(): patterns
+                    subentry.replace(" ", "-").lower(): [
+                        re.compile(p) for p in patterns if p
+                    ]
                     for subentry in lang.split(",")
                 }
             )

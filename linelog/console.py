@@ -2,6 +2,7 @@
 
 import sys
 from datetime import date, timedelta
+from importlib.resources import as_file
 from os import path
 
 from rich import print as rprint
@@ -10,7 +11,6 @@ from rich.console import Console
 from .apputil import get_parser, read_config
 from .log_util import RepoScanner
 from .plotter import make_figure, make_table
-from importlib.resources import as_file
 
 
 def run():
