@@ -13,6 +13,8 @@ from re import Pattern
 from typing import Any
 from importlib import resources
 
+from time import perf_counter
+from rich import print as rprint
 import pygit2
 from pygit2 import Blob, Commit, GitError, Repository, Tree
 
@@ -246,8 +248,13 @@ def get_interval_stats(
     filetypes_db: dict[str, str],
     ignore_config: dict[str, Any],
 ) -> dict[date, dict[str, int]]:
+
+    s = perf_counter()
     if isinstance(repo, Path):
         repo = pygit2.Repository(repo)
+
+    rprint(f"[green]Starting {repo.path}")
+
 
     interval_commits = get_interval_commits(repo, start_date, end_date, user)
 
@@ -274,6 +281,9 @@ def get_interval_stats(
             day_total = sum_dict_items(day_total, combined)
 
         totals[d] = day_total
+
+    e = perf_counter()
+    rprint(f"[red bold]took {e - s:.2f} sec for {repo.path}")
 
     return totals
 
@@ -324,8 +334,8 @@ class RepoScanner:
     def make_finder(self, path: Path, start_date: date, end_date: date):
         username = deepcopy(self.username)
 
-        filetypes_db = deepcopy(self.filetypes_db)
-        ignore_config = deepcopy(self.ignore_config)
+        filetypes_db = self.filetypes_db
+        ignore_config = self.ignore_config
 
         return partial(
             get_interval_stats,
@@ -339,15 +349,29 @@ class RepoScanner:
 
     def scan_path(
         self, start_dir: str, start_date: date, end_date: date, recursive: bool = True
-    ):
+    )->dict[date, dict[str,int]] | None:
         repos = self.find_repo_paths(start_dir, recursive=recursive)
 
         if not repos:
             return None
 
-        eval_repo = partial(self.make_finder, start_date=start_date, end_date=end_date)
+        def eval_repo(r):
+            f = partial(self.make_finder, start_date=start_date, end_date=end_date)
+            return f(r)()
+
+        # f = partial(self.make_finder, start_date=start_date, end_date=end_date)
 
         with futures.ProcessPoolExecutor() as executor:
-            evaluated_repos = (s() for s in executor.map(eval_repo, repos))
-            results = reduce(sum_dict_items, evaluated_repos)
+            #            results = reduce(sum_dict_items, (s() for s in executor.map(eval_repo, repos, chunksize=2048)))
+
+            #            x = (executor.submit(eval_repo, r) for r in repos)
+
+            repo_futures = []
+            for r in repos:
+                f = self.make_finder(r, start_date, end_date)
+                x = executor.submit(f)
+                repo_futures.append(x)
+
+        results = reduce(sum_dict_items,  (r.result() for r in futures.as_completed(repo_futures)))
+
         return results
