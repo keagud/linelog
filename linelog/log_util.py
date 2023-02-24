@@ -11,6 +11,7 @@ from os.path import splitext
 from pathlib import Path
 from re import Pattern
 from typing import Any
+from importlib import resources
 
 import pygit2
 from pygit2 import Blob, Commit, GitError, Repository, Tree
@@ -279,7 +280,9 @@ def get_interval_stats(
 
 class RepoScanner:
     def __init__(self, ignore_config: dict, username: str | None = None):
-        with open("filetypes.json", "r") as filetypes_file:
+        filetype_data_ref = resources.files("linelog").joinpath("filetypes.json")
+
+        with filetype_data_ref.open("r") as filetypes_file:
             self.filetypes_db = json.load(filetypes_file)
 
         self.ignore_config = ignore_config

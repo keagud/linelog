@@ -7,12 +7,13 @@ from os import path
 from rich import print as rprint
 from rich.console import Console
 
-from apputil import get_parser, read_config
-from log_util import RepoScanner
-from plotter import make_figure, make_table
+from .apputil import get_parser, read_config
+from .log_util import RepoScanner
+from .plotter import make_figure, make_table
+from importlib.resources import as_file
 
 
-def main():
+def run():
     cli_parser = get_parser()
     args = cli_parser.parse_args()
 
@@ -61,4 +62,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    run()

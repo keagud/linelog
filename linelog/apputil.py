@@ -3,9 +3,10 @@ from os import getcwd
 from pathlib import Path
 from shutil import copyfile
 
+from importlib import resources
 import yaml
 
-from log_util import get_global_username
+from .log_util import get_global_username
 
 
 def get_parser():
@@ -59,7 +60,10 @@ def init_config():
 
     config_target = config_path.joinpath("config.yaml")
 
-    copyfile("default_config.yaml", config_target)
+    init_config_handle = resources.files("linelog").joinpath("default_config.yaml")
+
+    with resources.as_file(init_config_handle) as default_config:
+        copyfile(default_config, config_target)
 
 
 def read_config() -> dict:
@@ -85,3 +89,7 @@ def read_config() -> dict:
         config["lines"] = split_lines_config
 
     return config
+
+
+def get_filetypes_db():
+    pass

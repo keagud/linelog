@@ -5,7 +5,7 @@ from shutil import get_terminal_size
 import plotille as pl
 from rich.table import Table
 
-from log_util import sum_dict_items
+from .log_util import sum_dict_items
 
 
 def format_for_plot(data: dict[date, dict[str, int]]):
