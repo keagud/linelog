@@ -31,7 +31,6 @@ def sum_dict_items(a: int | dict, b: int | dict) -> dict | int:
     if not (a is None and b is None):
         if a is None:
             return b
-
         if b is None:
             return a
 
@@ -46,12 +45,10 @@ def _(a: dict, b: dict) -> dict:
 
 @sum_dict_items.register
 def _(a: int, b: int) -> int:
-    # TODO gotta be a better way to express this
     if a is None:
         return b
     if b is None:
         return a
-
     return a + b
 
 
@@ -62,6 +59,7 @@ def sum_dicts(a: dict, b: dict) -> dict:
 
 @functools.cache
 def sloc_from_text(src_text: str | bytes, line_spec: frozenset[Pattern]) -> int:
+
     try:
         if isinstance(src_text, bytes):
             src_text = src_text.decode()
@@ -69,10 +67,9 @@ def sloc_from_text(src_text: str | bytes, line_spec: frozenset[Pattern]) -> int:
         return 0
 
     for pattern in (p for p in line_spec if p):
-        src_text = re.sub(pattern, "", src_text)
+        src_text = re.sub(pattern, " ", src_text)
 
-    valid_lines = [line for line in src_text.splitlines() if line]
-
+    valid_lines = [line for line in src_text.splitlines() if not line.isspace()]
     return len(valid_lines)
 
 

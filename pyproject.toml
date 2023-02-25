@@ -6,9 +6,6 @@ authors = ["keagud <keagud@protonmail.com>"]
 license = "Unlicense"
 readme = "README.md"
 
-#packages= [{include = "linelog" }]
-#include= ["*.json", "*.yaml"]
-
 [tool.poetry.dependencies]
 python = "^3.10"
 pygit2 = "^1.11.1"
@@ -21,7 +18,6 @@ toml = "^0.10.2"
 
 [tool.poetry.scripts]
 linelog = 'linelog.console:run'
-
 
 [build-system]
 requires = ["poetry-core"]

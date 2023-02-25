@@ -87,17 +87,16 @@ def read_config() -> dict:
         for lang, patterns in lines_config.items():
             split_lines_config.update(
                 {
-                    subentry.replace(" ", "-").lower(): [
-                        re.compile(p) for p in patterns if p
+                    subentry.strip()
+                    .replace(" ", "-")
+                    .lower(): [
+                        re.compile(p, flags=re.MULTILINE | re.DOTALL)
+                        for p in patterns
+                        if p
                     ]
                     for subentry in lang.split(",")
                 }
             )
 
         config["lines"] = split_lines_config
-
     return config
-
-
-def get_filetypes_db():
-    pass
