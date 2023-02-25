@@ -1,9 +1,9 @@
 [tool.poetry]
 name = "linelog"
-version = "0.1.0"
+version = "1.0.1"
 description = "Track your total lines of code committed in git, and view the trend over time via a simple TUI graph visualization"
 authors = ["keagud <keagud@protonmail.com>"]
-license = "Unlicense"
+license = "0BSD"
 readme = "README.md"
 
 [tool.poetry.dependencies]
