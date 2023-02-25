@@ -32,6 +32,8 @@ patterns:
 # the matching is multiline, so use ^$ for single line patterns
 # multiple comma-separated languages can share patterns
 
+# IMPORTANT! These patterns are compiled with the 'dotall' and 'multiline' flags, which allows for targeting multiline 
+# comments and docstrings. However this also means for patterns intended to match a single line, you need to use non-greedy quantifiers (*?) and end the pattern with '$'. See the patterns for // and # style comments.
 lines:
 
     any:

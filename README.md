@@ -4,10 +4,10 @@
 `linelog` is a CLI program that scans your local git repositories generates a summary of your total lines of code committed, broken down by language. For example, if I run `linelog -a` on my main desktop computer, it generates this:
 ![example-day](screenshots/linelog-example-day.png)
 
-This isn't very exciting since I've only written Python today. With the `-d` flag you can look back further in time, and see the results as a nice graph:
-<image>
+This isn't very exciting since I've not done much today (look, work-life balance is important.)  With the `-d` flag you can look back further in time, and see the results as a nice graph:
+![example-2week](screenshots/linelog-example-2week.png)
 
-*Hey, wait a second!*, you exclaim, *This very project has more than <> lines of Python code, and most of it was committed in that very interval!* That's very astute of you, you have a real eagle eye. The discrepency comes from the fact that `linelog` does its best to count *logical* lines of code by skipping comments and whitespaces. You can customize what counts as a line for a given filetype; see the section on [configuration](https://github.com/keagud/linelog#the-config-file)
+*Hey, wait a second!*, you exclaim, *This very project has more than 651 lines of Python code, and most of it was committed in that very interval!* That's very astute of you, you have a real eagle eye. The discrepency comes from the fact that `linelog` does its best to count *logical* lines of code by skipping comments and whitespaces. You can customize what counts as a line for a given filetype; see the section on [configuration](https://github.com/keagud/linelog#the-config-file)
 
 
 ## Installation
@@ -71,6 +71,6 @@ options:
 
 Config options take the form of regular expressions; when the program encounters a line that matches one of the expressions for a given filetype, it will not count it. See the comments in `config.yaml` for more details
 
-## Known Issues and TODOs
+
 
 
