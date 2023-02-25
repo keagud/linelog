@@ -14,17 +14,10 @@ This isn't very exciting since I've not done much today (look, work-life balance
 *Hey, wait a second!*, you exclaim, *This very project has more than 651 lines of Python code, and most of it was committed in that very interval!* That's very astute of you, you have a real eagle eye. The discrepency comes from the fact that `linelog` does its best to count *logical* lines of code by skipping comments and whitespaces. You can customize what counts as a line for a given filetype; see the section on [configuration](https://github.com/keagud/linelog#the-config-file)
 
 
-## Installation
-### Arch Linux and kin (AUR)
-`linelog` is on the Arch User Repository (AUR). You can get it in the usual manner with the AUR downloader of your choice:
-```
-$ yay -S linelog
-```
-
-### Other Linuxes/Unixes (Pip)
+## Installation (Pip)
 `linelog` is on PyPI. Install it with `pip` or `pipx`:
 ```
-pipx install linelog
+pip install linelog
 ```
 
 ## Usage and Configuration
