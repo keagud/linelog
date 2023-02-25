@@ -4,7 +4,7 @@ from shutil import get_terminal_size
 
 import plotille as pl
 from rich.table import Table
-
+import datetime
 from .log_util import sum_dicts
 
 
@@ -19,9 +19,12 @@ def format_for_plot(data: dict[date, dict[str, int]]):
     return (dates, date_info)
 
 
-def date_formatter(val: date, chars: int, delta, left: bool = False):
+def date_formatter(
+    val: date, chars: int, delta, left: bool = False, full_width: int = 0
+):
     date_str = f"{val.month}/{val.day}"
-    return "{0:{1}s}".format(date_str, chars, "<" if left else "")
+
+    return "{0:{1}s}".format(date_str, chars, "<" if left else "^")
 
 
 def linescount_formatter(val: int, chars: int, delta, left: bool = False):
@@ -38,12 +41,12 @@ def make_figure(data: dict[date, dict[str, int]]) -> pl.Figure:
     fig.set_y_limits(min_=0)
 
     if not min(data) == max(data):
-        fig.set_x_limits(min_=min(data), max_=max(data))
+        fig.set_x_limits(min_=min(data), max_=max(data) + datetime.timedelta(days=1))
 
     fig.register_label_formatter(date, date_formatter)
     fig.y_label = "lines"
 
-    fig.origin = True
+    fig.origin = False
 
     fig.register_label_formatter(float, linescount_formatter)
 
