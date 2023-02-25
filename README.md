@@ -2,7 +2,7 @@
 ## Summary
 
 `linelog` is a CLI program that scans your local git repositories generates a summary of your total lines of code committed, broken down by language. For example, if I run `linelog -a` on my main desktop computer, it generates this:
-<image>
+![example-day](screenshots/linelog-example-day.png)
 
 This isn't very exciting since I've only written Python today. With the `-d` flag you can look back further in time, and see the results as a nice graph:
 <image>
