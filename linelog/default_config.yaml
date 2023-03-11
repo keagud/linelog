@@ -8,9 +8,6 @@ extensions:
 - txt
 - md
 - rst
-- toml
-- json
-- yaml
 - html
 - yml
 - tex
