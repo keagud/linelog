@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "linelog"
-version = "1.0.2"
+version = "1.0.3"
 description = "Track your total lines of code committed in git, and view the trend over time via a simple TUI graph visualization"
 authors = ["keagud <keagud@protonmail.com>"]
 license = "0BSD"
